@@ -2,17 +2,16 @@ package sm2
 
 import (
 	"encoding/pem"
-	"github.com/Hyperledger-TWGC/tjfoc-gm/x509"
-	"os"
 	"testing"
 
+	"github.com/Hyperledger-TWGC/tjfoc-gm/x509"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/kms"
 	"github.com/stretchr/testify/assert"
+	"github.com/tw-bc-group/aliyun-kms/comm"
 )
 
 func setupFixture() *kms.Client {
-	client, err := kms.NewClientWithAccessKey(os.Getenv("ALIBABA_CLOUD_REGION"),
-		os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_ID"), os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET"))
+	client, err := comm.CreateKmsClient()
 	if err != nil {
 		panic(err)
 	}
@@ -20,9 +19,7 @@ func setupFixture() *kms.Client {
 }
 
 func TestParsePublicKey(t *testing.T) {
-	client := setupFixture()
-
-	sm2, err := CreateSm2KeyAdapter(client, SignAndVerify, "")
+	sm2, err := CreateSm2KeyAdapter(nil, SignAndVerify, "")
 
 	if err != nil {
 		t.Fatalf("failed to create sm2 sign key, Got err: %s", err)

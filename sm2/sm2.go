@@ -6,6 +6,7 @@ import (
 	"github.com/Hyperledger-TWGC/tjfoc-gm/sm3"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/kms"
+	"github.com/tw-bc-group/aliyun-kms/comm"
 )
 
 const requestScheme = "https"
@@ -42,8 +43,20 @@ func CreateSm2KeyAdapter(client *kms.Client, usage int, keyID string) (*KeyAdapt
 		usage = SignAndVerify
 	}
 
+	var kmsClient *kms.Client
+
+	if client == nil {
+		client, err := comm.CreateKmsClient()
+		if err != nil {
+			return nil, err
+		}
+		kmsClient = client
+	} else {
+		kmsClient = client
+	}
+
 	sm2 := &KeyAdapter{
-		client: client,
+		client: kmsClient,
 		usage:  usage,
 	}
 

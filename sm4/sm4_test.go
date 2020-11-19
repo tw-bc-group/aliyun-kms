@@ -1,16 +1,15 @@
 package sm4
 
 import (
+	"testing"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/kms"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
+	"github.com/tw-bc-group/aliyun-kms/comm"
 )
 
-
 func setupFixture() *kms.Client {
-	client, err := kms.NewClientWithAccessKey(os.Getenv("ALIBABA_CLOUD_REGION"),
-		os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_ID"), os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET"))
+	client, err := comm.CreateKmsClient()
 	if err != nil {
 		panic(err)
 	}

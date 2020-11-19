@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/kms"
+	"github.com/tw-bc-group/aliyun-kms/comm"
 )
 
 const requestScheme = "https"
@@ -14,8 +15,20 @@ type KeyAdapter struct {
 }
 
 func CreateSm4KeyAdapter(client *kms.Client, keyID string) (*KeyAdapter, error) {
+	var kmsClient *kms.Client
+
+	if client == nil {
+		client, err := comm.CreateKmsClient()
+		if err != nil {
+			return nil, err
+		}
+		kmsClient = client
+	} else {
+		kmsClient = client
+	}
+
 	sm4 := &KeyAdapter{
-		client: client,
+		client: kmsClient,
 	}
 
 	if keyID == "" {
