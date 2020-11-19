@@ -57,6 +57,10 @@ func CreateSm2KeyAdapter(client *kms.Client, usage int, keyID string) (*KeyAdapt
 	return sm2, nil
 }
 
+func (sm2 *KeyAdapter) KeyID() string {
+	return sm2.keyID
+}
+
 func (sm2 *KeyAdapter) CreateKey() error {
 	createKeyReq := kms.CreateCreateKeyRequest()
 	createKeyReq.Scheme = requestScheme
@@ -82,6 +86,20 @@ func (sm2 *KeyAdapter) CreateKey() error {
 	sm2.keyVersion = listKeyVersionsResp.KeyVersions.KeyVersion[0].KeyVersionId
 
 	return nil
+}
+
+func (sm2 *KeyAdapter) GetPublicKey() (string, error) {
+	request := kms.CreateGetPublicKeyRequest()
+	request.Scheme = requestScheme
+	request.KeyId = sm2.keyID
+	request.KeyVersionId = sm2.keyVersion
+
+	response, err := sm2.client.GetPublicKey(request)
+	if err != nil {
+		return "", err
+	}
+
+	return response.PublicKey, nil
 }
 
 func (sm2 *KeyAdapter) AsymmetricSign(message []byte) (string, error) {
