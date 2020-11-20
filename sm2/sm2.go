@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"github.com/Hyperledger-TWGC/tjfoc-gm/sm2"
-	"github.com/Hyperledger-TWGC/tjfoc-gm/sm3"
 	"github.com/Hyperledger-TWGC/tjfoc-gm/x509"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/kms"
@@ -30,6 +29,21 @@ type KeyAdapter struct {
 	keyVersion string
 }
 
+func (sm2 *KeyAdapter) sm3Digest(message []byte) (string, error) {
+	pubKey, err := sm2.GetPublicKey()
+
+	if err != nil {
+		return "", err
+	}
+
+	digest, err := pubKey.Sm3Digest(message, []byte{})
+	if err != nil {
+		return "", nil
+	}
+
+	return base64.StdEncoding.EncodeToString(digest), nil
+}
+
 func keyUsageString(keyUsage int) string {
 	switch keyUsage {
 	case EncryptAndDecrypt:
@@ -37,10 +51,6 @@ func keyUsageString(keyUsage int) string {
 	default:
 		return "SIGN/VERIFY"
 	}
-}
-
-func sm3Digest(message []byte) string {
-	return base64.StdEncoding.EncodeToString(sm3.Sm3Sum(message))
 }
 
 func CreateSm2KeyAdapter(keyID string, usage int) (*KeyAdapter, error) {
@@ -129,12 +139,17 @@ func (sm2 *KeyAdapter) AsymmetricSign(message []byte) ([]byte, error) {
 		return nil, errors.New("unexpected key usage")
 	}
 
+	digest, err := sm2.sm3Digest(message)
+	if err != nil {
+		return nil, err
+	}
+
 	request := kms.CreateAsymmetricSignRequest()
 	request.Scheme = requestScheme
 	request.KeyId = sm2.keyID
 	request.Algorithm = sm2SignAlgorithm
 	request.KeyVersionId = sm2.keyVersion
-	request.Digest = sm3Digest(message)
+	request.Digest = digest
 
 	response, err := sm2.client.AsymmetricSign(request)
 	if err != nil {
@@ -158,12 +173,17 @@ func (sm2 *KeyAdapter) AsymmetricVerify(message, signature []byte, ) (bool, erro
 		return false, errors.New("unexpected key usage")
 	}
 
+	digest, err := sm2.sm3Digest(message)
+	if err != nil {
+		return false, err
+	}
+
 	request := kms.CreateAsymmetricVerifyRequest()
 	request.Scheme = requestScheme
 	request.KeyId = sm2.keyID
 	request.Algorithm = sm2SignAlgorithm
 	request.KeyVersionId = sm2.keyVersion
-	request.Digest = sm3Digest(message)
+	request.Digest = digest
 	request.Value = base64.StdEncoding.EncodeToString(signature)
 
 	response, err := sm2.client.AsymmetricVerify(request)
@@ -256,8 +276,8 @@ func (c *cryptoSigner) Public() crypto.PublicKey {
 	return c.pubKey
 }
 
-func (c *cryptoSigner) Sign(_ io.Reader, digest []byte, _ crypto.SignerOpts) ([]byte, error) {
-	signature, err := c.adapter.AsymmetricSign(digest)
+func (c *cryptoSigner) Sign(_ io.Reader, message []byte, _ crypto.SignerOpts) ([]byte, error) {
+	signature, err := c.adapter.AsymmetricSign(message)
 	if err != nil {
 		return nil, err
 	}
