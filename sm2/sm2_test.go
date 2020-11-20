@@ -52,14 +52,14 @@ func TestEncryptAndDecrypt(t *testing.T) {
 		t.Fatalf("failed to create sm2 encrypt key, Got err: %s", err)
 	}
 
-	message := []byte("test sign verify")
+	message := []byte("test crypto")
 
-	plainText, err := sm2.AsymmetricEncrypt(message)
+	cipherText, err := sm2.AsymmetricEncrypt(message)
 	if err != nil {
 		t.Fatalf("failed to sm2 asymmetric encrypt, Got err: %s", err)
 	}
 
-	decryptText, err := sm2.AsymmetricDecrypt(plainText)
+	decryptText, err := sm2.AsymmetricDecrypt(cipherText)
 	if err != nil {
 		t.Fatalf("failed to sm2 asymmetric decrypt, Got err: %s", err)
 	}
