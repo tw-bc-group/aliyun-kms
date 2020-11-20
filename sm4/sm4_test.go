@@ -3,23 +3,11 @@ package sm4
 import (
 	"testing"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/kms"
 	"github.com/stretchr/testify/assert"
-	"github.com/tw-bc-group/aliyun-kms/comm"
 )
 
-func setupFixture() *kms.Client {
-	client, err := comm.CreateKmsClient()
-	if err != nil {
-		panic(err)
-	}
-	return client
-}
-
 func TestEncryptAndDecrypt(t *testing.T) {
-	client := setupFixture()
-
-	sm4, err := CreateSm4KeyAdapter(client, "")
+	sm4, err := CreateSm4KeyAdapter("")
 	if err != nil {
 		t.Fatalf("failed to create sm4 key, Got err: %s", err)
 	}

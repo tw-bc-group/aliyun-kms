@@ -1,12 +1,17 @@
 package sm2
 
 import (
+	"crypto"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
+	"github.com/Hyperledger-TWGC/tjfoc-gm/sm2"
 	"github.com/Hyperledger-TWGC/tjfoc-gm/sm3"
+	"github.com/Hyperledger-TWGC/tjfoc-gm/x509"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/kms"
 	"github.com/tw-bc-group/aliyun-kms/comm"
+	"io"
 )
 
 const requestScheme = "https"
@@ -38,36 +43,28 @@ func sm3Digest(message []byte) string {
 	return base64.StdEncoding.EncodeToString(sm3.Sm3Sum(message))
 }
 
-func CreateSm2KeyAdapter(client *kms.Client, usage int, keyID string) (*KeyAdapter, error) {
+func CreateSm2KeyAdapter(keyID string, usage int) (*KeyAdapter, error) {
 	if usage != EncryptAndDecrypt && usage != SignAndVerify {
 		usage = SignAndVerify
 	}
 
-	var kmsClient *kms.Client
-
-	if client == nil {
-		client, err := comm.CreateKmsClient()
-		if err != nil {
-			return nil, err
-		}
-		kmsClient = client
-	} else {
-		kmsClient = client
+	client, err := comm.CreateKmsClient()
+	if err != nil {
+		return nil, err
 	}
 
-	sm2 := &KeyAdapter{
-		client: kmsClient,
+	adapter := &KeyAdapter{
+		client: client,
 		usage:  usage,
+		keyID:  keyID,
 	}
 
-	if keyID == "" {
-		err := sm2.CreateKey()
-		if err != nil {
-			return nil, err
-		}
+	err = adapter.CreateKey()
+	if err != nil {
+		return nil, err
 	}
 
-	return sm2, nil
+	return adapter, nil
 }
 
 func (sm2 *KeyAdapter) KeyID() string {
@@ -75,33 +72,35 @@ func (sm2 *KeyAdapter) KeyID() string {
 }
 
 func (sm2 *KeyAdapter) CreateKey() error {
-	createKeyReq := kms.CreateCreateKeyRequest()
-	createKeyReq.Scheme = requestScheme
-	createKeyReq.KeySpec = "EC_SM2"
-	createKeyReq.KeyUsage = keyUsageString(sm2.usage)
+	// set keyID already
+	if sm2.keyID == "" {
+		request := kms.CreateCreateKeyRequest()
+		request.Scheme = requestScheme
+		request.KeySpec = "EC_SM2"
+		request.KeyUsage = keyUsageString(sm2.usage)
 
-	createKeyResp, err := sm2.client.CreateKey(createKeyReq)
+		response, err := sm2.client.CreateKey(request)
+		if err != nil {
+			return err
+		}
+		sm2.keyID = response.KeyMetadata.KeyId
+	}
+
+	request := kms.CreateListKeyVersionsRequest()
+	request.Scheme = requestScheme
+	request.KeyId = sm2.keyID
+
+	response, err := sm2.client.ListKeyVersions(request)
 	if err != nil {
 		return err
 	}
 
-	sm2.keyID = createKeyResp.KeyMetadata.KeyId
-
-	listKeyVersionsReq := kms.CreateListKeyVersionsRequest()
-	listKeyVersionsReq.Scheme = requestScheme
-	listKeyVersionsReq.KeyId = sm2.keyID
-
-	listKeyVersionsResp, err := sm2.client.ListKeyVersions(listKeyVersionsReq)
-	if err != nil {
-		return err
-	}
-
-	sm2.keyVersion = listKeyVersionsResp.KeyVersions.KeyVersion[0].KeyVersionId
+	sm2.keyVersion = response.KeyVersions.KeyVersion[0].KeyVersionId
 
 	return nil
 }
 
-func (sm2 *KeyAdapter) GetPublicKey() (string, error) {
+func (sm2 *KeyAdapter) GetPublicKey() (*sm2.PublicKey, error) {
 	request := kms.CreateGetPublicKeyRequest()
 	request.Scheme = requestScheme
 	request.KeyId = sm2.keyID
@@ -109,19 +108,25 @@ func (sm2 *KeyAdapter) GetPublicKey() (string, error) {
 
 	response, err := sm2.client.GetPublicKey(request)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return response.PublicKey, nil
+	block, _ := pem.Decode([]byte(response.PublicKey))
+	pubKey, err := x509.ParseSm2PublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return pubKey, nil
 }
 
-func (sm2 *KeyAdapter) AsymmetricSign(message []byte) (string, error) {
+func (sm2 *KeyAdapter) AsymmetricSign(message []byte) ([]byte, error) {
 	if sm2.keyID == "" || sm2.keyVersion == "" {
-		return "", errors.New("need create sm2 key first")
+		return nil, errors.New("need create sm2 key first")
 	}
 
 	if sm2.usage != SignAndVerify {
-		return "", errors.New("unexpected key usage")
+		return nil, errors.New("unexpected key usage")
 	}
 
 	request := kms.CreateAsymmetricSignRequest()
@@ -133,13 +138,18 @@ func (sm2 *KeyAdapter) AsymmetricSign(message []byte) (string, error) {
 
 	response, err := sm2.client.AsymmetricSign(request)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return response.Value, nil
+	signature, err := base64.StdEncoding.DecodeString(response.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	return signature, nil
 }
 
-func (sm2 *KeyAdapter) AsymmetricVerify(message []byte, signature string) (bool, error) {
+func (sm2 *KeyAdapter) AsymmetricVerify(message, signature []byte, ) (bool, error) {
 	if sm2.keyID == "" || sm2.keyVersion == "" {
 		return false, errors.New("need create sm2 key first")
 	}
@@ -154,7 +164,7 @@ func (sm2 *KeyAdapter) AsymmetricVerify(message []byte, signature string) (bool,
 	request.Algorithm = sm2SignAlgorithm
 	request.KeyVersionId = sm2.keyVersion
 	request.Digest = sm3Digest(message)
-	request.Value = signature
+	request.Value = base64.StdEncoding.EncodeToString(signature)
 
 	response, err := sm2.client.AsymmetricVerify(request)
 
@@ -225,4 +235,31 @@ func (sm2 *KeyAdapter) ScheduleKeyDeletion() error {
 
 	_, err := sm2.client.ScheduleKeyDeletion(request)
 	return err
+}
+
+// implements crypto.Signer
+func (sm2 *KeyAdapter) TryIntoCryptoSigner() (crypto.Signer, error) {
+	pubKey, err := sm2.GetPublicKey()
+	if err != nil {
+		return nil, err
+	}
+
+	return &cryptoSigner{adapter: sm2, pubKey: pubKey}, nil
+}
+
+type cryptoSigner struct {
+	adapter *KeyAdapter
+	pubKey  crypto.PublicKey
+}
+
+func (c *cryptoSigner) Public() crypto.PublicKey {
+	return c.pubKey
+}
+
+func (c *cryptoSigner) Sign(_ io.Reader, digest []byte, _ crypto.SignerOpts) ([]byte, error) {
+	signature, err := c.adapter.AsymmetricSign(digest)
+	if err != nil {
+		return nil, err
+	}
+	return signature, nil
 }

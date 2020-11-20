@@ -14,21 +14,14 @@ type KeyAdapter struct {
 	keyID  string
 }
 
-func CreateSm4KeyAdapter(client *kms.Client, keyID string) (*KeyAdapter, error) {
-	var kmsClient *kms.Client
-
-	if client == nil {
-		client, err := comm.CreateKmsClient()
-		if err != nil {
-			return nil, err
-		}
-		kmsClient = client
-	} else {
-		kmsClient = client
+func CreateSm4KeyAdapter(keyID string) (*KeyAdapter, error) {
+	client, err := comm.CreateKmsClient()
+	if err != nil {
+		return nil, err
 	}
 
 	sm4 := &KeyAdapter{
-		client: kmsClient,
+		client: client,
 	}
 
 	if keyID == "" {
