@@ -92,7 +92,6 @@ func CreateSm2KeyAdapter(keyID string, usage int) (*KeyAdapter, error) {
 
 	adapter.publicKey, err = adapter.getPublicKey()
 	if err != nil {
-		_ = adapter.ScheduleKeyDeletion()
 		return nil, err
 	}
 
