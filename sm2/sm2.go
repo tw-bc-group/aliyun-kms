@@ -99,6 +99,10 @@ func CreateSm2KeyAdapter(keyID string, usage int) (*KeyAdapter, error) {
 	return adapter, nil
 }
 
+func (adapter *KeyAdapter) PublicKey() *sm2.PublicKey {
+	return adapter.publicKey
+}
+
 func (adapter *KeyAdapter) KeyID() string {
 	return adapter.keyID
 }
