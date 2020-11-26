@@ -34,27 +34,27 @@ func CreateSm4KeyAdapter(keyID string) (*KeyAdapter, error) {
 	return sm4, nil
 }
 
-func (sm4 *KeyAdapter) CreateKey() error {
+func (adapter *KeyAdapter) CreateKey() error {
 	request := kms.CreateCreateKeyRequest()
 	request.Scheme = requestScheme
 	request.KeySpec = "Aliyun_SM4"
 
-	response, err := sm4.client.CreateKey(request)
+	response, err := adapter.client.CreateKey(request)
 	if err != nil {
 		return err
 	}
 
-	sm4.keyID = response.KeyMetadata.KeyId
+	adapter.keyID = response.KeyMetadata.KeyId
 	return nil
 }
 
-func (sm4 *KeyAdapter) Encrypt(plainText []byte) ([]byte, error) {
+func (adapter *KeyAdapter) Encrypt(plainText []byte) ([]byte, error) {
 	request := kms.CreateEncryptRequest()
 	request.Scheme = requestScheme
-	request.KeyId = sm4.keyID
+	request.KeyId = adapter.keyID
 	request.Plaintext = base64.StdEncoding.EncodeToString(plainText)
 
-	response, err := sm4.client.Encrypt(request)
+	response, err := adapter.client.Encrypt(request)
 	if err != nil {
 		return nil, err
 	}
@@ -62,12 +62,12 @@ func (sm4 *KeyAdapter) Encrypt(plainText []byte) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(response.CiphertextBlob)
 }
 
-func (sm4 *KeyAdapter) Decrypt(cipherText []byte) ([]byte, error) {
+func (adapter *KeyAdapter) Decrypt(cipherText []byte) ([]byte, error) {
 	request := kms.CreateDecryptRequest()
 	request.Scheme = requestScheme
 	request.CiphertextBlob = base64.StdEncoding.EncodeToString(cipherText)
 
-	response, err := sm4.client.Decrypt(request)
+	response, err := adapter.client.Decrypt(request)
 	if err != nil {
 		return nil, err
 	}
@@ -75,12 +75,12 @@ func (sm4 *KeyAdapter) Decrypt(cipherText []byte) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(response.Plaintext)
 }
 
-func (sm4 *KeyAdapter) ScheduleKeyDeletion() error {
+func (adapter *KeyAdapter) ScheduleKeyDeletion() error {
 	request := kms.CreateScheduleKeyDeletionRequest()
 	request.Scheme = requestScheme
-	request.KeyId = sm4.keyID
+	request.KeyId = adapter.keyID
 	request.PendingWindowInDays = requests.NewInteger(7)
 
-	_, err := sm4.client.ScheduleKeyDeletion(request)
+	_, err := adapter.client.ScheduleKeyDeletion(request)
 	return err
 }
