@@ -2,6 +2,7 @@ package sm2
 
 import (
 	"crypto"
+	"github.com/Hyperledger-TWGC/tjfoc-gm/sm2"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,6 +31,35 @@ func TestSignAndVerify(t *testing.T) {
 
 	if err = adapter.ScheduleKeyDeletion(); err != nil {
 		t.Fatalf("failed to schedule adapter key deletion, Got err: %s", err)
+	}
+}
+
+
+func TestEncryptAndDecryptWithPublicKey(t *testing.T) {
+	adapter, err := CreateSm2KeyAdapter("", EncryptAndDecrypt)
+
+	if err != nil {
+		t.Fatalf("failed to create sm2 encrypt key, Got err: %s", err)
+	}
+
+	message := []byte("test crypto")
+
+	publicKey := adapter.PublicKey()
+
+	cipher, err := sm2.Encrypt(publicKey, message, nil)
+	if err != nil {
+		t.Fatalf("failed to sm2 asymmetric encrypt, Got err: %s", err)
+	}
+
+	decryptText, err := adapter.AsymmetricDecrypt(cipher)
+	if err != nil {
+		t.Fatalf("failed to sm2 asymmetric decrypt, Got err: %s", err)
+	}
+
+	assert.Equal(t, message, decryptText, "decrypted should same as plain text")
+
+	if err = adapter.ScheduleKeyDeletion(); err != nil {
+		t.Fatalf("failed to schedule sm2 key deletion, Got err: %s", err)
 	}
 }
 
