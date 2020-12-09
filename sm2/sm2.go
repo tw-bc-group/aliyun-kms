@@ -16,6 +16,7 @@ import (
 const requestScheme = "https"
 const sm2SignAlgorithm = "SM2DSA"
 const sm2EncryptAlgorithm = "SM2PKE"
+const maxPageSize = 100
 
 const (
 	EncryptAndDecrypt = 1 + iota
@@ -169,7 +170,7 @@ func (adapter *KeyAdapter) AsymmetricSign(message []byte) ([]byte, error) {
 	return signature, nil
 }
 
-func (adapter *KeyAdapter) AsymmetricVerify(message, signature []byte, ) (bool, error) {
+func (adapter *KeyAdapter) AsymmetricVerify(message, signature []byte) (bool, error) {
 	if adapter.keyID == "" || adapter.keyVersion == "" {
 		return false, errors.New("need create adapter key first")
 	}
@@ -274,4 +275,52 @@ func (adapter *KeyAdapter) Sign(_ io.Reader, message []byte, _ crypto.SignerOpts
 // implements crypto.Decrypter
 func (adapter *KeyAdapter) Decrypt(_ io.Reader, msg []byte, _ crypto.DecrypterOpts) ([]byte, error) {
 	return adapter.AsymmetricDecrypt(msg)
+}
+
+func ListKyes() ([]string, error) {
+	keyIds := []string{}
+	page := 1
+	for {
+		keys, isContinue, err := listKeys(keyIds, page)
+		if err != nil {
+			return nil, err
+		}
+
+		keyIds = keys
+
+		if isContinue {
+			page++
+		} else {
+			return keyIds, nil
+		}
+	}
+}
+
+func listKeys(keyIds []string, page int) ([]string, bool, error) {
+	client, err := comm.CreateKmsClient()
+	request := kms.CreateListKeysRequest()
+	request.PageNumber = requests.NewInteger(page)
+	request.PageSize = requests.NewInteger(maxPageSize)
+	// Only list Enabled EC_SM2 keys
+	request.Filters = `[{"Key":"KeySpec", "Values":["EC_SM2"]}, {"Key":"KeyState", "Values":["Enabled"]}]`
+	request.Scheme = requestScheme
+
+	response, err := client.ListKeys(request)
+	if err != nil {
+		return keyIds, false, err
+	}
+
+	if !response.IsSuccess() {
+		return keyIds, false, errors.New(response.String())
+	}
+
+	for _, k := range response.Keys.Key {
+		keyIds = append(keyIds, k.KeyId)
+	}
+
+	if response.PageSize*response.PageNumber < response.TotalCount {
+		return keyIds, true, nil
+	} else {
+		return keyIds, false, nil
+	}
 }

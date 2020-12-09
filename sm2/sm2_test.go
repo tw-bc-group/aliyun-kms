@@ -8,6 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Set key usage limit for test env
+const maxKeyLimit = 10
+
 func TestSignAndVerify(t *testing.T) {
 	adapter, err := CreateSm2KeyAdapter("", SignAndVerify)
 
@@ -33,7 +36,6 @@ func TestSignAndVerify(t *testing.T) {
 		t.Fatalf("failed to schedule adapter key deletion, Got err: %s", err)
 	}
 }
-
 
 func TestEncryptAndDecryptWithPublicKey(t *testing.T) {
 	adapter, err := CreateSm2KeyAdapter("", EncryptAndDecrypt)
@@ -102,7 +104,6 @@ func TestIsCryptoSigner(t *testing.T) {
 	}
 }
 
-
 func TestIsCryptoDecrypter(t *testing.T) {
 	var duck interface{}
 	duck, err := CreateSm2KeyAdapter("", SignAndVerify)
@@ -113,5 +114,20 @@ func TestIsCryptoDecrypter(t *testing.T) {
 	_, ok := duck.(crypto.Decrypter)
 	if !ok {
 		t.Fatalf("sm2 key adapter is not crypto.Decrypter")
+	}
+}
+
+func TestListKeys(t *testing.T) {
+	allKeys, err := ListKyes()
+	if err != nil {
+		t.Fatalf("failed to list sm2 keys, Got err: %s", err)
+	}
+	t.Logf("Used Total: %d keys", len(allKeys))
+	for i, k := range allKeys {
+		t.Log("Key ", i, ": ", k)
+	}
+
+	if len(allKeys) >= maxKeyLimit {
+		t.Fatalf("Should not use more then %d keys", maxKeyLimit)
 	}
 }
