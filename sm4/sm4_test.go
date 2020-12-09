@@ -6,8 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testSm4KeyId = "xxxxxx"
+
 func TestEncryptAndDecrypt(t *testing.T) {
-	adapter, err := CreateSm4KeyAdapter("")
+	adapter, err := CreateSm4KeyAdapter(testSm4KeyId)
 	if err != nil {
 		t.Fatalf("failed to create adapter key, Got err: %s", err)
 	}
@@ -25,8 +27,4 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	}
 
 	assert.Equal(t, plainText, decryptText, "decrypted should same as plain text")
-
-	if err = adapter.ScheduleKeyDeletion(); err != nil {
-		t.Fatalf("failed to schedule adapter key deletion, Got err: %s", err)
-	}
 }

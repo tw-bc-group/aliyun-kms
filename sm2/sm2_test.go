@@ -10,9 +10,11 @@ import (
 
 // Set key usage limit for test env
 const maxKeyLimit = 10
+const testSignAndVerifyKeyId = "acc39758-a2ff-4ff2-900e-8a2cd5d37335"
+const testEncryptAndDecryptKeyId = "db20aafe-c953-43b7-914e-565cc5a7381f"
 
 func TestSignAndVerify(t *testing.T) {
-	adapter, err := CreateSm2KeyAdapter("", SignAndVerify)
+	adapter, err := CreateSm2KeyAdapter(testSignAndVerifyKeyId, SignAndVerify)
 
 	if err != nil {
 		t.Fatalf("failed to create adapter sign key, Got err: %s", err)
@@ -31,14 +33,10 @@ func TestSignAndVerify(t *testing.T) {
 	}
 
 	assert.Equal(t, verify, true, "verify should be success")
-
-	if err = adapter.ScheduleKeyDeletion(); err != nil {
-		t.Fatalf("failed to schedule adapter key deletion, Got err: %s", err)
-	}
 }
 
 func TestEncryptAndDecryptWithPublicKey(t *testing.T) {
-	adapter, err := CreateSm2KeyAdapter("", EncryptAndDecrypt)
+	adapter, err := CreateSm2KeyAdapter(testEncryptAndDecryptKeyId, EncryptAndDecrypt)
 
 	if err != nil {
 		t.Fatalf("failed to create sm2 encrypt key, Got err: %s", err)
@@ -59,14 +57,10 @@ func TestEncryptAndDecryptWithPublicKey(t *testing.T) {
 	}
 
 	assert.Equal(t, message, decryptText, "decrypted should same as plain text")
-
-	if err = adapter.ScheduleKeyDeletion(); err != nil {
-		t.Fatalf("failed to schedule sm2 key deletion, Got err: %s", err)
-	}
 }
 
 func TestEncryptAndDecrypt(t *testing.T) {
-	adapter, err := CreateSm2KeyAdapter("", EncryptAndDecrypt)
+	adapter, err := CreateSm2KeyAdapter(testEncryptAndDecryptKeyId, EncryptAndDecrypt)
 
 	if err != nil {
 		t.Fatalf("failed to create adapter encrypt key, Got err: %s", err)
@@ -85,15 +79,11 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	}
 
 	assert.Equal(t, message, decryptText, "decrypted should same as plain text")
-
-	if err = adapter.ScheduleKeyDeletion(); err != nil {
-		t.Fatalf("failed to schedule adapter key deletion, Got err: %s", err)
-	}
 }
 
 func TestIsCryptoSigner(t *testing.T) {
 	var duck interface{}
-	duck, err := CreateSm2KeyAdapter("", SignAndVerify)
+	duck, err := CreateSm2KeyAdapter(testSignAndVerifyKeyId, SignAndVerify)
 	if err != nil {
 		t.Fatalf("failed to create sm2 key adapter, Got err: %s", err)
 	}
@@ -106,7 +96,7 @@ func TestIsCryptoSigner(t *testing.T) {
 
 func TestIsCryptoDecrypter(t *testing.T) {
 	var duck interface{}
-	duck, err := CreateSm2KeyAdapter("", SignAndVerify)
+	duck, err := CreateSm2KeyAdapter(testSignAndVerifyKeyId, SignAndVerify)
 	if err != nil {
 		t.Fatalf("failed to create sm2 key adapter, Got err: %s", err)
 	}
