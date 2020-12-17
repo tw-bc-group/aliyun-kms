@@ -298,6 +298,10 @@ func ListKyes() ([]string, error) {
 
 func listKeys(keyIds []string, page int) ([]string, bool, error) {
 	client, err := comm.CreateKmsClient()
+	if err != nil {
+		return nil, false, err
+	}
+
 	request := kms.CreateListKeysRequest()
 	request.PageNumber = requests.NewInteger(page)
 	request.PageSize = requests.NewInteger(maxPageSize)
